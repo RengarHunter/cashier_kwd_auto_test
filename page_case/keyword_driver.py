@@ -7,7 +7,7 @@
 @Description: 关键字驱动核心类（按DrissionPage官网修正）
 """
 # 确保导入正确的类（Chromium而不是ChromiumPage）
-from DrissionPage  import Chromium, ChromiumOptions
+from DrissionPage import Chromium, ChromiumOptions
 from common.yaml_util import YamlUtil
 from config.conf import cm
 from util.logger import logger_instance as logger
@@ -55,16 +55,16 @@ class KeywordDriver:
     def click(self, locator: dict, desc: str):
         """点击操作（官网方法：page.click()）"""
         try:
-            self.page.click(locator)
+            self.page.ele(locator).click()
             logger.log("INFO", f"✅ 点击操作完成：{desc}")
         except Exception as e:
             logger.log("ERROR", f"❌ 点击操作失败（{desc}）：{str(e)}")
             raise
 
-    def input_text(self, locator: dict, text: str, desc: str):
-        """输入操作（官网方法：page.fill()，代替错误的input()）"""
+    def input_text(self, locator: str, text: str, desc: str):
+        """输入操作（完全对齐你的demo：ele定位→clear→input）"""
         try:
-            self.page.fill(locator, text)  # 关键修正：input → fill
+            self.page.ele(locator).clear().input(text)
             logger.log("INFO", f"✅ 输入操作完成：{desc}（输入内容：{text}）")
         except Exception as e:
             logger.log("ERROR", f"❌ 输入操作失败（{desc}）：{str(e)}")
@@ -84,28 +84,16 @@ class KeywordDriver:
             logger.log("ERROR", f"❌ 断言操作异常（{desc}）：{str(e)}")
             raise
 
-    def login_cashier(self, username: str, password: str, pin: str, desc: str):
-        """收银台登录（用修正后的fill方法）"""
+    def login_cashier(self, username: str, password: str, desc: str):
         try:
-            # 用fill方法输入（已修正）
-            self.input_text({"id": "username"}, username, "输入收银台账号")
-            self.input_text({"id": "password"}, password, "输入收银台密码")
-            self.input_text({"id": "pin"}, pin, "输入收银台PIN码")
+            self.input_text('x://input[@placeholder="Account Number"]', username, "输入收银台账号")
+            self.input_text('x://input[@placeholder="Password"]', password, "输入收银台密码")
             self.click({"id": "login-btn"}, "点击收银台登录按钮")
             logger.log("INFO", f"✅ 收银台登录完成：{desc}（账号：{username}）")
         except Exception as e:
             logger.log("ERROR", f"❌ 收银台登录失败（{desc}）：{str(e)}")
             raise
 
-    def login_member(self, phone: str, desc: str):
-        """会员登录（用修正后的方法）"""
-        try:
-            self.input_text({"id": "member-phone"}, phone, "输入会员手机号")
-            self.click({"id": "member-login-btn"}, "点击会员登录按钮")
-            logger.log("INFO", f"✅ 会员登录完成：{desc}（手机号：{phone}）")
-        except Exception as e:
-            logger.log("ERROR", f"❌ 会员登录失败（{desc}）：{str(e)}")
-            raise
 
     def input_pin(self, num: str, choose_num: str, desc: str, status: int = 0):
         """PIN码输入（参数顺序已修正，用正确方法）"""
@@ -136,9 +124,7 @@ class KeywordDriver:
                 elif action == "assert_text":
                     self.assert_text(locator, step["expected"], desc)
                 elif action == "login_cashier":
-                    self.login_cashier(step["username"], step["password"], step["pin"], desc)
-                elif action == "login_member":
-                    self.login_member(step["phone"], desc)
+                    self.login_cashier(step["username"], step["password"], desc)
                 elif action == "input_pin":
                     self.input_pin(step["num"], step["choose_num"], desc, step.get("status", 0))
                 elif action == "setup":
