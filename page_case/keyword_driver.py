@@ -6,7 +6,7 @@
 @File: keyword_driver.py
 @Description: 关键字驱动核心类
 """
-from drissionpage import ChromiumPage, ChromiumOptions
+from DrissionPage import ChromiumPage, ChromiumOptions
 from common.yaml_util import YamlUtil
 from config.conf import cm
 from util.logger import logger_instance as logger
@@ -106,7 +106,7 @@ class KeywordDriver:
             logger.log("ERROR", f"❌ 会员登录失败（{desc}）：{str(e)}")
             raise
 
-    def input_pin(self, num: str, choose_num: str, status: int = 0, desc: str):
+    def input_pin(self, num: str, choose_num: str, desc: str):
         """输入PIN码（按实际业务逻辑补充）"""
         try:
             # 此处按你的PIN码输入逻辑补充（如数字键盘点击）
@@ -142,7 +142,7 @@ class KeywordDriver:
                 elif action == "login_member":
                     self.login_member(step["phone"], desc)
                 elif action == "input_pin":
-                    self.input_pin(step["num"], step["choose_num"], step.get("status", 0), desc)
+                    self.input_pin(step["num"], step["choose_num"], step.get("status", 0))
                 elif action == "setup":
                     self.setup(step.get("url"))  # 调用setup方法（支持传URL）
                     logger.log("INFO", desc)
