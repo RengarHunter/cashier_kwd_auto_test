@@ -1,0 +1,7 @@
+DrissionPage
+pytest
+allure-pytest
+PyYAML
+python-dotenv
+requests
+loguru

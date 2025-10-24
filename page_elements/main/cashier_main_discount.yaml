@@ -1,0 +1,57 @@
+cashier_main_discount:
+  - action: setup
+    url: ${TEST_URL}
+    desc: "初始化浏览器并访问收银台登录页"
+
+  - action: login_cashier
+    username: ${CASHIER_USER}
+    password: ${CASHIER_PWD}
+    pin: ${CASHIER_PIN}
+    desc: "收银台登录（用户名+密码+PIN）"
+
+  - action: click
+    locator: ["xpath", '//span[contains(text(), "More")]']
+    desc: "点击More菜单"
+
+  - action: click
+    locator: ["xpath", '(//span[contains(text(), "Switch")])[2]']
+    desc: "点击Switch切换语言"
+
+  - action: click
+    locator: ["xpath", '//div[contains(text(), "简体中文")]']
+    desc: "切换为简体中文"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "柠檬西瓜茶")]']
+    desc: "点击柠檬西瓜茶商品"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "修改名称")]']
+    desc: "点击修改商品名称"
+
+  - action: input_text
+    locator: ["xpath", '//input[@placeholder="商品名称"]']
+    text: "柠檬西瓜果茶"
+    desc: "修改商品名称为柠檬西瓜果茶"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "确认")]']
+    desc: "确认修改名称"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "10%OFF")]']
+    desc: "选择10%OFF折扣"
+
+  - action: input_pin
+    num: "6666"
+    choose_num: 1
+    status: 0
+    desc: "输入PIN码确认折扣"
+
+  - action: assert_text
+    locator: ["xpath", '//div[contains(text(), "折扣已应用")]']
+    expected: "折扣已应用"
+    desc: "验证折扣应用成功"
+
+  - action: teardown
+    desc: "关闭浏览器"

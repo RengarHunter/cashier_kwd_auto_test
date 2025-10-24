@@ -1,0 +1,36 @@
+cashier_other_member:
+  - action: setup
+    url: ${TEST_URL}
+    desc: "初始化浏览器并访问收银台登录页"
+
+  - action: login_cashier
+    username: ${CASHIER_USER}
+    password: ${CASHIER_PWD}
+    pin: ${CASHIER_PIN}
+    desc: "收银台登录"
+
+  - action: login_member
+    phone: ${MEMBER_PHONE}
+    desc: "登录会员（手机号24120501）"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "余额充值")]']
+    desc: "点击余额充值"
+
+  - action: input_pin
+    num: "100"
+    choose_num: 3
+    status: 1
+    desc: "输入充值金额100"
+
+  - action: click
+    locator: ["xpath", '//button[contains(text(), "Visa支付")]']
+    desc: "选择Visa支付方式"
+
+  - action: assert_text
+    locator: ["xpath", '//div[contains(text(), "充值成功")]']
+    expected: "充值成功"
+    desc: "验证会员充值成功"
+
+  - action: teardown
+    desc: "关闭浏览器"
