@@ -181,7 +181,6 @@ class KeywordDriver:
                 elif action == "scroll_to_bottom":
                     self.page.scroll.to_bottom()
                     logger.log("INFO", desc)
-                # 新增：处理 action="setup"
                 elif action == "setup":
                     self.setup(step.get("url"))  # 调用 setup 方法，可传URL参数（从YAML读取）
                 else:

@@ -24,10 +24,10 @@ class YamlUtil:
 
             with open(yaml_path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
-            logger.info(f"成功读取YAML文件: {yaml_path}")
+            logger.log("Info", f"成功读取YAML文件: {yaml_path}")
             return data
         except Exception as e:
-            logger.error(f"读取YAML文件失败: {str(e)}")
+            logger.log("ERROR", f"读取YAML文件失败: {str(e)}")
             raise e
 
     def write_yaml(self, yaml_path, data):
@@ -35,7 +35,7 @@ class YamlUtil:
         try:
             with open(yaml_path, 'w', encoding='utf-8') as f:
                 yaml.dump(data, f, allow_unicode=True, sort_keys=False)
-            logger.info(f"成功写入YAML文件: {yaml_path}")
+            logger.log("Info", f"成功写入YAML文件: {yaml_path}")
         except Exception as e:
-            logger.error(f"写入YAML文件失败: {str(e)}")
+            logger.log("ERROR", f"写入YAML文件失败: {str(e)}")
             raise e
