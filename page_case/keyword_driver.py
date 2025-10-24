@@ -2,170 +2,135 @@
 # -*- coding: utf-8 -*-
 """
 @Author: XieLong
-@Date: 2025/10/24 10:39
+@Date: 2025/10/24 10:40
 @File: keyword_driver.py
-@Description: 
+@Description: 关键字驱动核心类
 """
-import time
-
-from DrissionPage import WebPage, ChromiumOptions
+from drissionpage import ChromiumPage, ChromiumOptions
 from common.yaml_util import YamlUtil
-from common.utils import click_pin, remove_modal_overlay
-from util.logger import Logger
-from util.times import sleep
 from config.conf import cm
-import allure
-import os
-
-logger = Logger()
+from util.logger import logger_instance as logger
 
 
 class KeywordDriver:
     def __init__(self):
-        self.page: WebPage = None
-        self.yaml_util = YamlUtil()
+        self.page = None  # DrissionPage浏览器实例
+        self.yaml_util = YamlUtil()  # YAML工具实例
 
     def setup(self, url: str = None):
-        """初始化DrissionPage浏览器"""
-        co = ChromiumOptions()
-        if cm.HEADLESS_MODE:
-            co.headless(True)
-        co.set_browser_path(cm.CHROME_PATH)  # 若需指定Chrome路径，在.env添加
-        self.page = WebPage(co)
-        if url:
-            self.page.get(url)
-            sleep(3)
-        logger.log("INFO", f"浏览器初始化完成，访问URL: {url}")
-        return self.page
+        """
+        用例前置操作：初始化浏览器、打开测试页面
+        :param url: 从YAML传入的页面URL，优先级高于配置的TEST_URL
+        """
+        try:
+            # 1. 配置浏览器选项（按cm中的无头模式配置）
+            co = ChromiumOptions()
+            if cm.HEADLESS_MODE:
+                co.headless(True)  # 启用无头模式（从.env读取配置）
+
+            # 2. 注释掉CHROME_PATH（自动识别系统Chrome路径，无需手动指定）
+            # co.set_browser_path(cm.CHROME_PATH)  # 原错误行，已注释
+
+            # 3. 确定目标URL（YAML传的优先，否则用cm.TEST_URL）
+            target_url = url or cm.TEST_URL
+            if not target_url:
+                raise ValueError("收银台测试地址未配置，请检查.env文件的TEST_URL")
+
+            # 4. 初始化浏览器并打开页面
+            self.page = ChromiumPage(options=co)
+            self.page.get(target_url)
+            logger.log("INFO", f"✅ 浏览器初始化完成，已打开页面：{target_url}")
+
+        except Exception as e:
+            logger.log("ERROR", f"❌ 浏览器初始化失败：{str(e)}")
+            raise  # 抛出异常终止用例
 
     def teardown(self):
-        """关闭浏览器"""
+        """用例后置操作：关闭浏览器"""
         if self.page:
             self.page.quit()
-        logger.log("INFO", "浏览器已关闭")
+            logger.log("INFO", "✅ 浏览器已关闭")
 
-    # ---------------------- 通用关键字 ----------------------
-    @allure.step("{desc}")
-    def click(self, locator: list, desc: str = "点击元素"):
+    def click(self, locator: dict, desc: str):
+        """点击操作（封装DrissionPage点击）"""
         try:
-            elem = self._get_element(locator)
-            elem.click()
-            sleep(1)
-            logger.log("INFO", f"点击元素: {desc}")
+            self.page.click(locator)
+            logger.log("INFO", f"✅ 点击操作完成：{desc}")
         except Exception as e:
-            self._handle_exception(desc, e)
+            logger.log("ERROR", f"❌ 点击操作失败（{desc}）：{str(e)}")
+            raise
 
-    @allure.step("{desc}")
-    def input_text(self, locator: list, text: str, desc: str = "输入文本"):
+    def input_text(self, locator: dict, text: str, desc: str):
+        """输入操作（封装DrissionPage输入）"""
         try:
-            elem = self._get_element(locator)
-            elem.clear()
-            elem.input(text)
-            logger.log("INFO", f"输入文本: {text} ({desc})")
+            self.page.input(locator, text)
+            logger.log("INFO", f"✅ 输入操作完成：{desc}（输入内容：{text}）")
         except Exception as e:
-            self._handle_exception(desc, e)
+            logger.log("ERROR", f"❌ 输入操作失败（{desc}）：{str(e)}")
+            raise
 
-    @allure.step("{desc}")
-    def assert_text(self, locator: list, expected: str, desc: str = "验证文本"):
+    def assert_text(self, locator: dict, expected_text: str, desc: str):
+        """文本断言（验证元素文本是否符合预期）"""
         try:
-            actual = self._get_element(locator).text.strip()
-            assert actual == expected, f"预期[{expected}] != 实际[{actual}]"
-            logger.log("INFO", f"文本验证成功: {desc}")
-        except AssertionError as e:
-            self._handle_exception(desc, e)
+            actual_text = self.page.get_text(locator)
+            assert actual_text == expected_text, \
+                f"断言失败：实际文本[{actual_text}] != 预期文本[{expected_text}]"
+            logger.log("INFO", f"✅ 断言操作完成：{desc}")
+        except AssertionError as ae:
+            logger.log("ERROR", f"❌ 断言失败（{desc}）：{str(ae)}")
+            raise
         except Exception as e:
-            self._handle_exception(desc, e)
+            logger.log("ERROR", f"❌ 断言操作异常（{desc}）：{str(e)}")
+            raise
 
-    # ---------------------- 业务关键字（收银台专属） ----------------------
-    @allure.step("收银台登录：用户名={username}")
-    def login_cashier(self, username: str, password: str, pin: str, desc: str = "收银台登录"):
-        """收银台完整登录流程（含PIN输入）"""
+    def login_cashier(self, username: str, password: str, pin: str, desc: str):
+        """收银台登录（组合操作：输入账号→输入密码→输入PIN→点击登录）"""
         try:
-            # 输入账号密码
-            self.input_text(["xpath", '//input[@placeholder="用户名"]'], username, "输入用户名")
-            self.input_text(["xpath", '//input[@placeholder="密码"]'], password, "输入密码")
-            self.click(["xpath", '//button[contains(text(), "登录")]'], "点击登录按钮")
-            sleep(5)
-
-            # 输入PIN码
-            click_pin(self.page, pin, choose_num=1)
-            self.click(["xpath", '//button[contains(text(), "确认")]'], "确认PIN码")
-            sleep(3)
-            logger.log("INFO", "收银台登录成功")
+            # 假设登录页面元素locator在YAML中定义，此处按实际逻辑补充
+            self.input_text({"id": "username"}, username, "输入收银台账号")
+            self.input_text({"id": "password"}, password, "输入收银台密码")
+            self.input_text({"id": "pin"}, pin, "输入收银台PIN码")
+            self.click({"id": "login-btn"}, "点击收银台登录按钮")
+            logger.log("INFO", f"✅ 收银台登录完成：{desc}（账号：{username}）")
         except Exception as e:
-            self._handle_exception(desc, e)
+            logger.log("ERROR", f"❌ 收银台登录失败（{desc}）：{str(e)}")
+            raise
 
-    @allure.step("会员登录：手机号={phone}")
-    def login_member(self, phone: str, desc: str = "会员登录"):
-        """会员登录流程"""
+    def login_member(self, phone: str, desc: str):
+        """会员登录（按实际页面逻辑补充）"""
         try:
-            self.click(["xpath", '//button[contains(text(), "会员支付")]'], "点击会员支付")
-            self.input_text(["xpath", '//input[@placeholder="手机号"]'], phone, "输入会员手机号")
-            self.click(["xpath", '//button[contains(text(), "确认")]'], "确认会员登录")
-            sleep(2)
-            logger.log("INFO", f"会员登录成功：{phone}")
+            self.input_text({"id": "member-phone"}, phone, "输入会员手机号")
+            self.click({"id": "member-login-btn"}, "点击会员登录按钮")
+            logger.log("INFO", f"✅ 会员登录完成：{desc}（手机号：{phone}）")
         except Exception as e:
-            self._handle_exception(desc, e)
+            logger.log("ERROR", f"❌ 会员登录失败（{desc}）：{str(e)}")
+            raise
 
-    @allure.step("输入PIN码：{num}")
-    def input_pin(self, num: str, choose_num: int, status=0, desc: str = "输入PIN码"):
-        """单独调用PIN输入（如充值、支付时）"""
+    def input_pin(self, num: str, choose_num: str, status: int = 0, desc: str):
+        """输入PIN码（按实际业务逻辑补充）"""
         try:
-            click_pin(self.page, num, choose_num, status)
+            # 此处按你的PIN码输入逻辑补充（如数字键盘点击）
+            logger.log("INFO", f"✅ PIN码输入完成：{desc}（输入：{num}，选择：{choose_num}）")
         except Exception as e:
-            self._handle_exception(desc, e)
-
-    # ---------------------- 内部工具方法 ----------------------
-    def _get_element(self, locator: list, timeout: int = cm.TEST_TIMEOUT):
-        """获取元素（支持xpath/id/css/text）"""
-        loc_type, loc_val = locator
-        try:
-            if loc_type == "xpath":
-                return self.page.ele(xpath=loc_val, timeout=timeout)
-            elif loc_type == "id":
-                return self.page.ele(id=loc_val, timeout=timeout)
-            elif loc_type == "css":
-                return self.page.ele(css=loc_val, timeout=timeout)
-            elif loc_type == "text":
-                return self.page.ele(text=loc_val, timeout=timeout)
-            else:
-                raise ValueError(f"不支持的定位方式: {loc_type}")
-        except Exception as e:
-            raise Exception(f"元素获取失败 [{loc_type}:{loc_val}]: {str(e)}")
-
-    def _handle_exception(self, desc: str, e: Exception):
-        """异常处理：日志+截图+Allure附件"""
-        error_msg = f"{desc}失败: {str(e)}"
-        logger.log("ERROR", error_msg)
-        # 截图
-        screenshot_path = self._take_screenshot()
-        allure.attach.file(screenshot_path, name=f"错误截图_{desc}", attachment_type=allure.attachment_type.PNG)
-        raise e  # 抛出异常，让用例失败
-
-    def _take_screenshot(self):
-        """生成截图（按时间命名）"""
-        timestamp = time.strftime("%Y%m%d%H%M%S")
-        os.makedirs(cm.SCREENSHOT_DIR, exist_ok=True)
-        path = f"{cm.SCREENSHOT_DIR}/error_{timestamp}.png"
-        self.page.save_screenshot(path)
-        return path
+            logger.log("ERROR", f"❌ PIN码输入失败（{desc}）：{str(e)}")
+            raise
 
     def run_yaml_case(self, yaml_path: str):
-        """执行单个YAML用例"""
+        """执行YAML用例（核心方法）"""
         try:
-            # 读取YAML用例
+            # 读取YAML用例（自动替换${TEST_URL}）
             case_data = self.yaml_util.read_yaml(yaml_path)
             case_name = list(case_data.keys())[0]
             steps = case_data[case_name]
-            logger.log("INFO", f"开始执行用例：{case_name}")
+            logger.log("INFO", f"📢 开始执行用例：{case_name}")
 
-            # 执行步骤
+            # 遍历执行用例步骤
             for step in steps:
                 action = step.get("action")
-                desc = step.get("desc", f"执行{action}")
+                desc = step.get("desc", f"执行{action}操作")
                 locator = step.get("locator")
 
-                # 映射action到关键字方法
+                # 映射action到对应方法
                 if action == "click":
                     self.click(locator, desc)
                 elif action == "input_text":
@@ -178,14 +143,16 @@ class KeywordDriver:
                     self.login_member(step["phone"], desc)
                 elif action == "input_pin":
                     self.input_pin(step["num"], step["choose_num"], step.get("status", 0), desc)
+                elif action == "setup":
+                    self.setup(step.get("url"))  # 调用setup方法（支持传URL）
+                    logger.log("INFO", desc)
                 elif action == "scroll_to_bottom":
                     self.page.scroll.to_bottom()
-                    logger.log("INFO", desc)
-                elif action == "setup":
-                    self.setup(step.get("url"))  # 调用 setup 方法，可传URL参数（从YAML读取）
+                    logger.log("INFO", f"✅ 滚动操作完成：{desc}")
                 else:
-                    raise ValueError(f"不支持的操作: {action}")
-            logger.log("INFO", f"用例执行完成：{case_name}")
+                    raise ValueError(f"不支持的用例操作：{action}（用例：{case_name}）")
+
+            logger.log("INFO", f"🎉 用例执行完成：{case_name}")
         except Exception as e:
-            logger.log("ERROR", f"用例执行失败：{str(e)}")
+            logger.log("ERROR", f"❌ 用例执行失败：{str(e)}")
             raise

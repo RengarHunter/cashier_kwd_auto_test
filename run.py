@@ -14,7 +14,7 @@ import json
 from util.feishu_dev import fsdev
 from util.feishu_myself import fsm
 from util.feishu_talk import fst
-from config.conf import cm  # 改用你的ConfigManager实例cm
+from config.conf import cm
 from util.logger import logger_instance  # 导入你的日志单例
 
 # 日志别名（简化调用）

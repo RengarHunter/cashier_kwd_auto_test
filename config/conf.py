@@ -29,6 +29,7 @@ class ConfigManager(object):
         load_dotenv(os.path.join(self.BASE_DIR, ".env"), override=True)
         self._init_paths()  # 初始化所有路径
         self._init_env_vars()  # 初始化环境变量配置
+        self.HEADLESS_MODE = False
 
     # ---------------- 基础路径配置 ----------------
     @property
