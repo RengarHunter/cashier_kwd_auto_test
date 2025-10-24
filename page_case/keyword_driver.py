@@ -7,7 +7,7 @@
 @Description: 关键字驱动核心类（按DrissionPage官网修正）
 """
 # 确保导入正确的类（Chromium而不是ChromiumPage）
-from drissionpage import Chromium, ChromiumOptions
+from DrissionPage  import Chromium, ChromiumOptions
 from common.yaml_util import YamlUtil
 from config.conf import cm
 from util.logger import logger_instance as logger
@@ -20,19 +20,19 @@ class KeywordDriver:
         self.yaml_util = YamlUtil()
 
     def setup(self, url: str = None):
-        """按官网demo初始化浏览器+页面"""
+        """按官网demo初始化浏览器+页面（适配旧版本方法名）"""
         try:
-            # 1. 配置浏览器选项（无头模式按.env配置）
+            # 1. 配置浏览器选项（无头模式）
             co = ChromiumOptions()
             if cm.HEADLESS_MODE:
-                co = co.headless()  # 官网标准写法：启用无头模式
+                co = co.headless()  # 官网标准写法
 
-            # 2. 初始化浏览器（官网demo：Chromium(co)）
+            # 2. 初始化浏览器
             self.browser = Chromium(co)
-            # 3. 获取新页面（官网demo：browser.new_page()）
-            self.page = self.browser.new_page()
+            # 3. 关键修正：new_page → new_tab（适配旧版本）
+            self.page = self.browser.new_tab()
 
-            # 4. 打开目标URL
+            # 4. 打开目标URL（后续逻辑不变）
             target_url = url or cm.TEST_URL
             if not target_url:
                 raise ValueError("收银台测试地址未配置，请检查.env文件的TEST_URL")
