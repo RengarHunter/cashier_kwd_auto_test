@@ -36,3 +36,4 @@ config/secret.conf
 .idea/
 *.iml
 .vscode/
+.env

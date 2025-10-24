@@ -6,6 +6,7 @@
 @File: keyword_driver.py
 @Description: 
 """
+import time
 
 from DrissionPage import WebPage, ChromiumOptions
 from common.yaml_util import YamlUtil
@@ -34,14 +35,14 @@ class KeywordDriver:
         if url:
             self.page.get(url)
             sleep(3)
-        logger.info(f"浏览器初始化完成，访问URL: {url}")
+        logger.log("INFO", f"浏览器初始化完成，访问URL: {url}")
         return self.page
 
     def teardown(self):
         """关闭浏览器"""
         if self.page:
             self.page.quit()
-        logger.info("浏览器已关闭")
+        logger.log("INFO", "浏览器已关闭")
 
     # ---------------------- 通用关键字 ----------------------
     @allure.step("{desc}")
@@ -50,7 +51,7 @@ class KeywordDriver:
             elem = self._get_element(locator)
             elem.click()
             sleep(1)
-            logger.info(f"点击元素: {desc}")
+            logger.log("INFO", f"点击元素: {desc}")
         except Exception as e:
             self._handle_exception(desc, e)
 
@@ -60,7 +61,7 @@ class KeywordDriver:
             elem = self._get_element(locator)
             elem.clear()
             elem.input(text)
-            logger.info(f"输入文本: {text} ({desc})")
+            logger.log("INFO", f"输入文本: {text} ({desc})")
         except Exception as e:
             self._handle_exception(desc, e)
 
@@ -69,7 +70,7 @@ class KeywordDriver:
         try:
             actual = self._get_element(locator).text.strip()
             assert actual == expected, f"预期[{expected}] != 实际[{actual}]"
-            logger.info(f"文本验证成功: {desc}")
+            logger.log("INFO", f"文本验证成功: {desc}")
         except AssertionError as e:
             self._handle_exception(desc, e)
         except Exception as e:
@@ -90,7 +91,7 @@ class KeywordDriver:
             click_pin(self.page, pin, choose_num=1)
             self.click(["xpath", '//button[contains(text(), "确认")]'], "确认PIN码")
             sleep(3)
-            logger.info("收银台登录成功")
+            logger.log("INFO", "收银台登录成功")
         except Exception as e:
             self._handle_exception(desc, e)
 
@@ -102,7 +103,7 @@ class KeywordDriver:
             self.input_text(["xpath", '//input[@placeholder="手机号"]'], phone, "输入会员手机号")
             self.click(["xpath", '//button[contains(text(), "确认")]'], "确认会员登录")
             sleep(2)
-            logger.info(f"会员登录成功：{phone}")
+            logger.log("INFO", f"会员登录成功：{phone}")
         except Exception as e:
             self._handle_exception(desc, e)
 
@@ -135,7 +136,7 @@ class KeywordDriver:
     def _handle_exception(self, desc: str, e: Exception):
         """异常处理：日志+截图+Allure附件"""
         error_msg = f"{desc}失败: {str(e)}"
-        logger.error(error_msg)
+        logger.log("ERROR", error_msg)
         # 截图
         screenshot_path = self._take_screenshot()
         allure.attach.file(screenshot_path, name=f"错误截图_{desc}", attachment_type=allure.attachment_type.PNG)
@@ -156,7 +157,7 @@ class KeywordDriver:
             case_data = self.yaml_util.read_yaml(yaml_path)
             case_name = list(case_data.keys())[0]
             steps = case_data[case_name]
-            logger.info(f"开始执行用例：{case_name}")
+            logger.log("INFO", f"开始执行用例：{case_name}")
 
             # 执行步骤
             for step in steps:
@@ -179,11 +180,13 @@ class KeywordDriver:
                     self.input_pin(step["num"], step["choose_num"], step.get("status", 0), desc)
                 elif action == "scroll_to_bottom":
                     self.page.scroll.to_bottom()
-                    logger.info(desc)
+                    logger.log("INFO", desc)
+                # 新增：处理 action="setup"
+                elif action == "setup":
+                    self.setup(step.get("url"))  # 调用 setup 方法，可传URL参数（从YAML读取）
                 else:
                     raise ValueError(f"不支持的操作: {action}")
-
-            logger.info(f"用例执行完成：{case_name}")
+            logger.log("INFO", f"用例执行完成：{case_name}")
         except Exception as e:
-            logger.error(f"用例执行失败：{str(e)}")
+            logger.log("ERROR", f"用例执行失败：{str(e)}")
             raise
