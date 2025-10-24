@@ -37,7 +37,7 @@ class KeywordDriver:
                 raise ValueError("收银台测试地址未配置，请检查.env文件的TEST_URL")
 
             # 4. 初始化浏览器并打开页面
-            self.page = ChromiumPage(options=co)
+            self.page = ChromiumPage(co)
             self.page.get(target_url)
             logger.log("INFO", f"✅ 浏览器初始化完成，已打开页面：{target_url}")
 
