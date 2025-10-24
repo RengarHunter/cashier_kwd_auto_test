@@ -3,11 +3,13 @@ cashier_main_discount:
     url: ${TEST_URL}
     desc: "初始化浏览器并访问收银台登录页"
 
+  - action: login_shop
+    app_id: 10014
+    desc: "Shop端登录"
+
   - action: login_cashier
-    username: ${CASHIER_USER}
-    password: ${CASHIER_PWD}
-    pin: ${CASHIER_PIN}
-    desc: "收银台登录（用户名+密码+PIN）"
+    app_id: 10014
+    desc: "Cashier端登录"
 
   - action: click
     locator: ["xpath", '//span[contains(text(), "More")]']
