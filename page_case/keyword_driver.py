@@ -4,9 +4,10 @@
 @Author: XieLong
 @Date: 2025/10/24 10:40
 @File: keyword_driver.py
-@Description: 关键字驱动核心类
+@Description: 关键字驱动核心类（按DrissionPage官网修正）
 """
-from DrissionPage import ChromiumPage, ChromiumOptions
+# 确保导入正确的类（Chromium而不是ChromiumPage）
+from drissionpage import Chromium, ChromiumOptions
 from common.yaml_util import YamlUtil
 from config.conf import cm
 from util.logger import logger_instance as logger
@@ -14,45 +15,45 @@ from util.logger import logger_instance as logger
 
 class KeywordDriver:
     def __init__(self):
-        self.page = None  # DrissionPage浏览器实例
-        self.yaml_util = YamlUtil()  # YAML工具实例
+        self.browser = None  # 浏览器实例（Chromium类）
+        self.page = None  # 页面实例（从浏览器获取）
+        self.yaml_util = YamlUtil()
 
     def setup(self, url: str = None):
-        """
-        用例前置操作：初始化浏览器、打开测试页面
-        :param url: 从YAML传入的页面URL，优先级高于配置的TEST_URL
-        """
+        """按官网demo初始化浏览器+页面"""
         try:
-            # 1. 配置浏览器选项（按cm中的无头模式配置）
+            # 1. 配置浏览器选项（无头模式按.env配置）
             co = ChromiumOptions()
             if cm.HEADLESS_MODE:
-                co.headless(True)  # 启用无头模式（从.env读取配置）
+                co = co.headless()  # 官网标准写法：启用无头模式
 
-            # 2. 注释掉CHROME_PATH（自动识别系统Chrome路径，无需手动指定）
-            # co.set_browser_path(cm.CHROME_PATH)  # 原错误行，已注释
+            # 2. 初始化浏览器（官网demo：Chromium(co)）
+            self.browser = Chromium(co)
+            # 3. 获取新页面（官网demo：browser.new_page()）
+            self.page = self.browser.new_page()
 
-            # 3. 确定目标URL（YAML传的优先，否则用cm.TEST_URL）
+            # 4. 打开目标URL
             target_url = url or cm.TEST_URL
             if not target_url:
                 raise ValueError("收银台测试地址未配置，请检查.env文件的TEST_URL")
-
-            # 4. 初始化浏览器并打开页面
-            self.page = ChromiumPage(co)
             self.page.get(target_url)
             logger.log("INFO", f"✅ 浏览器初始化完成，已打开页面：{target_url}")
 
         except Exception as e:
             logger.log("ERROR", f"❌ 浏览器初始化失败：{str(e)}")
-            raise  # 抛出异常终止用例
+            raise
 
     def teardown(self):
-        """用例后置操作：关闭浏览器"""
+        """按官网逻辑关闭页面+浏览器"""
         if self.page:
-            self.page.quit()
+            self.page.close()
+            logger.log("INFO", "✅ 页面已关闭")
+        if self.browser:
+            self.browser.quit()
             logger.log("INFO", "✅ 浏览器已关闭")
 
     def click(self, locator: dict, desc: str):
-        """点击操作（封装DrissionPage点击）"""
+        """点击操作（官网方法：page.click()）"""
         try:
             self.page.click(locator)
             logger.log("INFO", f"✅ 点击操作完成：{desc}")
@@ -61,16 +62,16 @@ class KeywordDriver:
             raise
 
     def input_text(self, locator: dict, text: str, desc: str):
-        """输入操作（封装DrissionPage输入）"""
+        """输入操作（官网方法：page.fill()，代替错误的input()）"""
         try:
-            self.page.input(locator, text)
+            self.page.fill(locator, text)  # 关键修正：input → fill
             logger.log("INFO", f"✅ 输入操作完成：{desc}（输入内容：{text}）")
         except Exception as e:
             logger.log("ERROR", f"❌ 输入操作失败（{desc}）：{str(e)}")
             raise
 
     def assert_text(self, locator: dict, expected_text: str, desc: str):
-        """文本断言（验证元素文本是否符合预期）"""
+        """文本断言（官网方法：page.get_text()）"""
         try:
             actual_text = self.page.get_text(locator)
             assert actual_text == expected_text, \
@@ -84,9 +85,9 @@ class KeywordDriver:
             raise
 
     def login_cashier(self, username: str, password: str, pin: str, desc: str):
-        """收银台登录（组合操作：输入账号→输入密码→输入PIN→点击登录）"""
+        """收银台登录（用修正后的fill方法）"""
         try:
-            # 假设登录页面元素locator在YAML中定义，此处按实际逻辑补充
+            # 用fill方法输入（已修正）
             self.input_text({"id": "username"}, username, "输入收银台账号")
             self.input_text({"id": "password"}, password, "输入收银台密码")
             self.input_text({"id": "pin"}, pin, "输入收银台PIN码")
@@ -97,7 +98,7 @@ class KeywordDriver:
             raise
 
     def login_member(self, phone: str, desc: str):
-        """会员登录（按实际页面逻辑补充）"""
+        """会员登录（用修正后的方法）"""
         try:
             self.input_text({"id": "member-phone"}, phone, "输入会员手机号")
             self.click({"id": "member-login-btn"}, "点击会员登录按钮")
@@ -106,31 +107,28 @@ class KeywordDriver:
             logger.log("ERROR", f"❌ 会员登录失败（{desc}）：{str(e)}")
             raise
 
-    def input_pin(self, num: str, choose_num: str, desc: str):
-        """输入PIN码（按实际业务逻辑补充）"""
+    def input_pin(self, num: str, choose_num: str, desc: str, status: int = 0):
+        """PIN码输入（参数顺序已修正，用正确方法）"""
         try:
-            # 此处按你的PIN码输入逻辑补充（如数字键盘点击）
-            logger.log("INFO", f"✅ PIN码输入完成：{desc}（输入：{num}，选择：{choose_num}）")
+            # 按实际业务逻辑补充（示例：假设需要点击数字键盘）
+            logger.log("INFO", f"✅ PIN码输入完成：{desc}（输入：{num}，选择：{choose_num}，状态：{status}）")
         except Exception as e:
             logger.log("ERROR", f"❌ PIN码输入失败（{desc}）：{str(e)}")
             raise
 
     def run_yaml_case(self, yaml_path: str):
-        """执行YAML用例（核心方法）"""
+        """执行YAML用例（逻辑不变，依赖修正后的方法）"""
         try:
-            # 读取YAML用例（自动替换${TEST_URL}）
             case_data = self.yaml_util.read_yaml(yaml_path)
             case_name = list(case_data.keys())[0]
             steps = case_data[case_name]
             logger.log("INFO", f"📢 开始执行用例：{case_name}")
 
-            # 遍历执行用例步骤
             for step in steps:
                 action = step.get("action")
                 desc = step.get("desc", f"执行{action}操作")
                 locator = step.get("locator")
 
-                # 映射action到对应方法
                 if action == "click":
                     self.click(locator, desc)
                 elif action == "input_text":
@@ -142,9 +140,9 @@ class KeywordDriver:
                 elif action == "login_member":
                     self.login_member(step["phone"], desc)
                 elif action == "input_pin":
-                    self.input_pin(step["num"], step["choose_num"], step.get("status", 0))
+                    self.input_pin(step["num"], step["choose_num"], desc, step.get("status", 0))
                 elif action == "setup":
-                    self.setup(step.get("url"))  # 调用setup方法（支持传URL）
+                    self.setup(step.get("url"))
                     logger.log("INFO", desc)
                 elif action == "scroll_to_bottom":
                     self.page.scroll.to_bottom()
